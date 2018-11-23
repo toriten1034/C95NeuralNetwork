@@ -15,7 +15,7 @@ class TowLayerNetwork
         int xx;
         TowLayerNetwork(int input_size, int hidden_size, int output_size)
         {
-                initializer(input_size, hidden_size, output_size, 0.01);
+                initializer(input_size, hidden_size, output_size, 0.1);
         }
 
         TowLayerNetwork(int input_size, int hidden_size, int output_size, double weight_init_std)
@@ -25,7 +25,6 @@ class TowLayerNetwork
 
         void initializer(int input_size, int hidden_size, int output_size, double weight_init_std)
         {
-                this->xx = 10;
 
                 this->params = new std::map<std::string, mat::Matrix<Fix18>>();
                 int i = 0;
@@ -40,13 +39,22 @@ class TowLayerNetwork
 
                 mat::Matrix<Fix18> b2 = mat::Matrix<Fix18>(output_size);
                 this->params->insert(std::make_pair("b2", b2));
-
-                std::cout << "XX" << this->xx << std::endl;
         }
 
         mat::Matrix<Fix18> predict(mat::Matrix<Fix18> x)
         {
+                //b1 has error
                 mat::Matrix<Fix18> a1 = x.dot(this->params->at("W1")) + this->params->at("b1");
+                /*
+                std::cout << "W1" << std::endl;
+                this->params->at("W1").shape();
+                std::cout << "b1" << std::endl;
+                this->params->at("b1").shape();
+                std::cout << "W2" << std::endl;
+                this->params->at("W2").shape();
+                std::cout << "b2" << std::endl;
+                this->params->at("b2").shape();
+*/
                 mat::Matrix<Fix18> z1 = a1.apply(sigmoid);
                 mat::Matrix<Fix18> a2 = z1.dot(this->params->at("W2")) + this->params->at("b2");
                 mat::Matrix<Fix18> y = softmax(a2);
@@ -62,15 +70,25 @@ class TowLayerNetwork
 
         Fix18 accuracy(mat::Matrix<Fix18> x, mat::Matrix<Fix18> t)
         {
-                mat::Matrix<Fix18> y = predict(x);
-                mat::Matrix<Fix18> y2 = y.max_arg(1);
-                mat::Matrix<Fix18> t2 = t.max_arg(1);
+                mat::Matrix<Fix18> y = this->predict(x);
+                mat::Matrix<Fix18> y2 = y.max_arg(0);
+                mat::Matrix<Fix18> t2 = t.transpose();
+
+                mat::Matrix<Fix18> equal = y2.compare(t2);
+
+                double sum = 0;
+                for (int i = 0; i < t.width * t.height * t.channel; i++)
+                {
+                        sum += equal.data[i].to_double();
+                }
+                Fix18 result = sum / (double)x.height;
+                return result;
         }
 
         std::map<std::string, mat::Matrix<Fix18>> gradient(mat::Matrix<Fix18> x, mat::Matrix<Fix18> t)
         {
                 std::map<std::string, mat::Matrix<Fix18>> grads;
-                int batch_num = x.width;
+                int batch_num = x.height;
 
                 /*****************************************forward*********************************/
                 mat::Matrix<Fix18> a1 = x.dot(this->params->at("W1")) + this->params->at("b1");
@@ -80,6 +98,7 @@ class TowLayerNetwork
 
                 /*****************************************backward********************************/
                 mat::Matrix<Fix18> y_minus_t = (y - t);
+
                 mat::Matrix<double> y_minus_t_double(t.width, t.height, t.channel);
 
                 //copy form Fix18 Matrix to double Matrix, to division
@@ -88,7 +107,7 @@ class TowLayerNetwork
                         y_minus_t_double.data[copy_cnt] = y_minus_t.data[copy_cnt].to_double();
                 }
 
-                mat::Matrix<double> dy_double = y_minus_t_double / batch_num;
+                mat::Matrix<double> dy_double = y_minus_t_double / (double)batch_num;
                 mat::Matrix<Fix18> dy(dy_double.width, dy_double.height, dy_double.channel);
 
                 //Write back from double Matrix to Fix18 Matrix
@@ -98,19 +117,24 @@ class TowLayerNetwork
                 }
 
                 mat::Matrix<Fix18> W2 = z1.transpose().dot(dy);
-                this->params->insert(std::make_pair("W2", W2));
+                this->params->at("W2").show();
+                W2.show();
+                grads.insert(std::make_pair("W2", W2));
 
-                mat::Matrix<Fix18> b2 = dy.sum(0);
-                this->params->insert(std::make_pair("b2", b2));
+                mat::Matrix<Fix18> b2 = dy.sum(1);
+                grads.insert(std::make_pair("b2", b2));
 
                 mat::Matrix<Fix18> dz1 = dy.dot(params->at("W2").transpose());
-                mat::Matrix<Fix18> da1 = a1.apply(sigmoid) * dz1;
-
+                mat::Matrix<Fix18> da1 = a1.apply(relu) * dz1;
                 mat::Matrix<Fix18> W1 = x.transpose().dot(da1);
-                this->params->insert(std::make_pair("W1", W1));
+                grads.insert(std::make_pair("W1", W1));
 
-                mat::Matrix<Fix18> b1 = da1.sum(0);
-                this->params->insert(std::make_pair("b1", b1));
+                mat::Matrix<Fix18> b1 = da1.sum(1);
+
+                //         std::cout << " neko da1" << std::endl;
+                //        da1.show();
+
+                grads.insert(std::make_pair("b1", b1));
 
                 return grads;
         }
@@ -124,24 +148,24 @@ std::vector<double> test_acc_list;
 
 int main(void)
 {
-        //init
+
         mnist_nanager<Fix18> train_data, test_data;
         train_data.load("train-labels.idx1-ubyte", "train-images.idx3-ubyte");
         test_data.load("t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte");
 
-        std::cout << "load ok" << std::endl;
+        //  std::cout << "load ok" << std::endl;
 
         //parameter
         static int item_num = 10000;
         int train_size = train_data.length;
-        static int batch_size = 100;
-        static int learning_rate = 0.1;
+        static int batch_size = 10;
+        static double learning_rate = 0.1;
 
         std::vector<Fix18> train_loss_list;
         std::vector<int> train_acc_list;
         std::vector<int> test_acc_list;
 
-        int iter_per_epoch = ((train_size / batch_size) < 1) ? 1 : (train_size / batch_size);
+        int iter_per_epoch = 100; // ((train_size / batch_size) < 1) ? 1 : (train_size / batch_size);
 
         TowLayerNetwork testnet = TowLayerNetwork(784, 50, 10);
 
@@ -154,9 +178,9 @@ int main(void)
                 std::random_device rnd;
 
                 mat::Matrix<Fix18> batch_data(train_data.width * train_data.height, batch_size);
-                mat::Matrix<Fix18> batch_label(train_data.width * train_data.height, 1);
+                mat::Matrix<Fix18> batch_label(10, batch_size);
 
-                for (int rnd_cnt; rnd_cnt < batch_size; rnd_cnt++)
+                for (int rnd_cnt = 0; rnd_cnt < batch_size; rnd_cnt++)
                 {
                         int random_index = rnd() % train_size;
                         std::vector<int>::iterator cIter = std::find(batch_map.begin(), batch_map.end(), random_index);
@@ -172,7 +196,8 @@ int main(void)
                                 //* std::cout << "rnd is " << random_index << std::endl;
 
                                 batch_map.push_back(random_index);
-                                batch_label.data[rnd_cnt] = train_data.label_array[random_index];
+
+                                batch_label.data[batch_label.calc_pos(train_data.label_array[random_index], rnd_cnt, 0)] = 1;
                                 for (int copy_cnt = 0; copy_cnt < train_data.width * train_data.height; copy_cnt++)
                                 {
                                         batch_data.data[batch_data.calc_pos(copy_cnt, rnd_cnt, 0)] = train_data.data_array[random_index].data[copy_cnt];
@@ -180,26 +205,43 @@ int main(void)
                         }
                 }
                 //*
-                std::cout << "batch ok" << std::endl;
+                //              std::cout << "batch ok" << std::endl;
 
                 //calcrate gradient;
                 std::map<std::string, mat::Matrix<Fix18>> grads = testnet.gradient(batch_data, batch_label);
                 //*
-                std::cout << "gradient of" << std::endl;
+                //                std::cout << "gradient ok" << std::endl;
 
                 //refresh parametor
 
+                //                grads.at("b1").shape();
+                //                testnet.params->at("b1").shape();
+
+                //bug
+                //                std::cout << "W1" << std::endl;
                 testnet.params->at("W1") = testnet.params->at("W1") - (grads.at("W1") * learning_rate);
+
+                //               std::cout << "b1" << std::endl;
                 testnet.params->at("b1") = testnet.params->at("b1") - (grads.at("b1") * learning_rate);
+
+                //               std::cout << "W2" << std::endl;
                 testnet.params->at("W2") = testnet.params->at("W2") - (grads.at("W2") * learning_rate);
+
+                //              std::cout << "b2" << std::endl;
                 testnet.params->at("b2") = testnet.params->at("b2") - (grads.at("b2") * learning_rate);
 
                 //*
-                std::cout << "refresh OK" << std::endl;
+                //  std::cout << "refresh OK" << std::endl;
 
                 Fix18 loss = testnet.loss(batch_data, batch_label);
                 train_loss_list.push_back(loss);
+
+                //*
+                //    std::cout << "loss OK" << std::endl;
+
                 //calcrate accuary by epoch
+                //  std::cout << (double)i / iter_per_epoch << std::endl;
+
                 if (i % iter_per_epoch == 0)
                 {
                         mat::Matrix<Fix18> test_batch_data(test_data.width * test_data.height, test_data.length);
@@ -207,7 +249,8 @@ int main(void)
 
                         for (int test_data_index = 0; test_data_index < test_data.length; test_data_index++)
                         {
-                                test_batch_label.data[test_data_index] = test_data.label_array[i];
+                                test_batch_label.data[test_data_index] = (double)test_data.label_array[test_data_index];
+
                                 for (int copy_cnt = 0; copy_cnt < (test_data.width * test_data.height); copy_cnt++)
                                 {
                                         test_batch_data.data[test_batch_data.calc_pos(test_data_index, copy_cnt, 0)] = test_data.data_array[test_data_index].data[copy_cnt];
@@ -218,7 +261,7 @@ int main(void)
                         double test_acc = testnet.accuracy(test_batch_data, test_batch_label).to_double();
                         train_acc_list.push_back(train_acc);
                         test_acc_list.push_back(test_acc);
-                        std::cout << "train_acc :" << train_acc << "test_acc" << test_acc << std::endl;
+                        std::cout << "train_acc :" << train_acc << "  test_acc" << test_acc << std::endl;
                 }
         }
 }
