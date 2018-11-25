@@ -1,6 +1,24 @@
 #include "../matrix/matrix.hpp"
 #include "../fixed_19/fixed_point.hpp"
 
+void save_matrix(mat::Matrix<Fix18> src, std::string filename)
+{
+        assert(src.channel > 1);
+        std::fstream fs;
+        fs.open(filename, std::fstream::in | std::fstream::out | std::fstream::app);
+
+        for (int y = 0; y < src.height; y++)
+        {
+                for (int x = 0; x < src.width; x++)
+                {
+                        fs << src.data[src.calc_pos(x, y, 0)] << " ";
+                }
+                if (y < src.height - 1)
+                        fs << "\n";
+        }
+        fs.close();
+}
+
 namespace grad
 {
 mat::Matrix<double> numerical_gradient(double (*func)(mat::Matrix<double>), mat::Matrix<Fix18> x)

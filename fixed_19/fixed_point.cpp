@@ -6,7 +6,7 @@ typedef unsigned short uint16;
 // date structure XX.XX
 class Fix16
 {
-  public:
+      public:
 	int16 value;
 	//constructor
 	Fix16()
@@ -83,7 +83,7 @@ typedef unsigned int uint32;
 // flag part[17]
 class Fix18
 {
-  public:
+      public:
 	uint32 value;
 	//constructor
 	Fix18()
@@ -172,14 +172,14 @@ class Fix18
 
 	Fix18 operator*(Fix18 obj)
 	{
-		uint32 a = (this->value < 0) ? (this->value | 0xFFE000000) : this->value;
-		uint32 b = (obj.value < 0) ? (obj.value | 0xFFE000000) : obj.value;
+		uint32 a = (this->value < 0) ? (this->value | 0xFFFC0000) : this->value;
+		uint32 b = (obj.value < 0) ? (obj.value | 0xFFFC0000) : obj.value;
 
 		uint32 tmp = a * b;
 		return Fix18((int)(((tmp >> 8) & 0x7FFFF) & ~(1 << 18)));
 	}
 
-  private:
+      private:
 	uint32 to_minus(uint32 x)
 	{
 		return x;
@@ -194,7 +194,7 @@ int main(void)
 	std::cout << "a is " << a.to_double() << std::endl;
 	std::cout << "b is " << b.to_double() << std::endl;
 	std::cout << "c is " << c.to_double() << "\n"
-			  << std::endl;
+		  << std::endl;
 
 	a = -1.5;
 	b = -0.5;
@@ -202,7 +202,7 @@ int main(void)
 	std::cout << "a is " << a.to_double() << std::endl;
 	std::cout << "b is " << b.to_double() << std::endl;
 	std::cout << "c is " << c.to_double() << "\n"
-			  << std::endl;
+		  << std::endl;
 
 	a = -0.5;
 	b = -2;

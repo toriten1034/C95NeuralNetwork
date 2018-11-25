@@ -12,14 +12,12 @@ template <typename TYPE>
 class Matrix
 {
 
-      private:
-	int cnt = 0;
-
       public:
 	TYPE *data;
 	int height = 0; //if height == 0 then dimension y is zero
 	int width = 0;
 	int channel = 0;
+	int insert_index = 0;
 
 	/******************************************************************************************
 	 * Calcrate index from x,y,x axis
@@ -40,7 +38,8 @@ class Matrix
 		this->channel = channel;
 		this->height = height;
 		this->width = width;
-		this->data = (TYPE *)calloc(sizeof(TYPE), width * height * channel);
+		this->data = (TYPE *)calloc(width * height * channel, sizeof(TYPE));
+		this->insert_index = 0;
 	}
 
 	/******************************************************************************************
@@ -84,7 +83,9 @@ class Matrix
 		this->width = obj.width;
 		this->height = obj.height;
 		this->channel = obj.channel;
-		this->data = data = (TYPE *)calloc(sizeof(TYPE), obj.width * obj.height * obj.channel);
+		this->insert_index = obj.insert_index;
+
+		this->data = (TYPE *)calloc(obj.width * obj.height * obj.channel, sizeof(TYPE));
 		for (int i = 0; i < (obj.width * obj.height * obj.channel); i++)
 		{
 			this->data[i] = obj.data[i];
@@ -97,11 +98,14 @@ class Matrix
 		this->width = obj.width;
 		this->height = obj.height;
 		this->channel = obj.channel;
+		this->insert_index = obj.insert_index;
+
 		if (this->data != NULL)
 		{
 			free(this->data);
 		}
-		this->data = data = (TYPE *)calloc(sizeof(TYPE), obj.width * obj.height * obj.channel);
+
+		this->data = data = (TYPE *)calloc(obj.width * obj.height * obj.channel, sizeof(TYPE));
 		for (int i = 0; i < (obj.width * obj.height * obj.channel); i++)
 		{
 			this->data[i] = obj.data[i];
@@ -207,6 +211,33 @@ class Matrix
 			std::cout << "]" << std::endl;
 		}
 	}
+	/******************************************************************************************
+	 * Opt out Matrix datas in 1/0
+	 * ***************************************************************************************/
+	void show_bin(void)
+	{
+		for (int i = 0; i < this->channel; i++)
+		{
+			if (i > 1)
+				std::cout << "channel " << i << std::endl;
+			std::cout << "[";
+			for (int j = 0; j < this->height; j++)
+			{
+				std::cout << "[";
+				for (int k = 0; k < this->width; k++)
+				{
+					int ptr = (i * this->width * this->height) + (j * this->width) + k;
+					std::cout << ((data[ptr] > 0) ? 1 : 0) << " ";
+				}
+				std::cout << "]";
+				if (j < this->height - 1)
+				{
+					std::cout << std::endl;
+				}
+			}
+			std::cout << "]" << std::endl;
+		}
+	}
 
 	/******************************************************************************************
 	 * opt out Matrix Dimensions Lengths
@@ -279,7 +310,6 @@ class Matrix
 						{
 							int pt_this = l + j * this->width;
 							int pt_obj = l * obj.width + k;
-							//	std::cout << this->data[pt_this] << "*" << obj.data[pt_obj] << std::endl;
 							sum = sum + this->data[pt_this] * obj.data[pt_obj];
 						}
 						// std::cout << channel_offset + line_offset + k << "=" << sum << std::endl;
@@ -301,11 +331,11 @@ class Matrix
 		//only 2d array
 		assert(channel == 1);
 		Matrix<TYPE> result(this->height, this->width, this->channel);
-		for (int i = 0; i < height; i++)
+		for (int h_index = 0; h_index < height; h_index++)
 		{
-			for (int j = 0; j < width; j++)
+			for (int w_index = 0; w_index < width; w_index++)
 			{
-				result.data[result.calc_pos(j, i, 0)] = this->data[this->calc_pos(i, j, 0)];
+				result.data[result.calc_pos(h_index, w_index, 0)] = this->data[this->calc_pos(w_index, h_index, 0)];
 			}
 		}
 		return result;
@@ -348,6 +378,7 @@ class Matrix
 		if ((width == 1 || height == 1) && channel == 1)
 		{
 			Matrix<TYPE> result(1, 1, 1);
+			result.data[0] = this->data[0];
 			for (int i = 0; i < (this->width * this->height * this->channel); i++)
 			{
 				if (result.data[0] < this->data[i])
@@ -365,6 +396,7 @@ class Matrix
 				Matrix<TYPE> result(1, this->height);
 				for (int y = 0; y < this->height; y++)
 				{
+					result.data[result.calc_pos(0, y, 0)] = this->data[calc_pos(0, y, 0)];
 					for (int i = 0; i < this->width; i++)
 					{
 						if (result.data[result.calc_pos(0, y, 0)] < this->data[calc_pos(i, y, 0)])
@@ -379,9 +411,11 @@ class Matrix
 			//colmn direction
 			{
 				Matrix<TYPE> result(this->width, 1);
-				for (int i = 0; i < this->height; i++)
+				for (int x = 0; x < this->height; x++)
 				{
-					for (int x = 0; x < this->height; x++)
+					result.data[result.calc_pos(x, 0, 0)] = this->data[calc_pos(x, 0, 0)];
+
+					for (int i = 0; i < this->height; i++)
 					{
 						if (result.data[result.calc_pos(x, 0, 0)] < this->data[calc_pos(x, i, 0)])
 						{
@@ -398,12 +432,14 @@ class Matrix
 			//row direction
 			{
 				Matrix<TYPE> result(1, this->height, this->channel);
-				for (int i = 0; i < this->width; i++)
+				for (int y = 0; y < this->height; y++)
 				{
-					for (int y = 0; y < this->height; y++)
+					for (int z = 0; z < this->channel; z++)
 					{
-						for (int z = 0; z < this->channel; z++)
+						result.data[result.calc_pos(0, y, z)] = this->data[calc_pos(0, y, z)];
+						for (int i = 0; i < this->width; i++)
 						{
+
 							if (result.data[result.calc_pos(0, y, z)] < this->data[calc_pos(i, y, z)])
 							{
 								result.data[result.calc_pos(0, y, z)] = this->data[calc_pos(i, y, z)];
@@ -418,12 +454,14 @@ class Matrix
 			//column direction
 			{
 				Matrix<TYPE> result(this->width, 1, this->channel);
-				for (int i = 0; i < this->height; i++)
+				for (int x = 0; x < this->height; x++)
 				{
-					for (int x = 0; x < this->height; x++)
+					for (int z = 0; z < this->channel; z++)
 					{
-						for (int z = 0; z < this->channel; z++)
+						result.data[result.calc_pos(x, 0, z)] = this->data[calc_pos(x, 0, z)];
+						for (int i = 0; i < this->height; i++)
 						{
+
 							if (result.data[result.calc_pos(x, 0, z)] < this->data[calc_pos(x, i, z)])
 							{
 								result.data[result.calc_pos(x, 0, z)] = this->data[calc_pos(x, i, z)];
@@ -438,12 +476,15 @@ class Matrix
 			{
 				Matrix<TYPE> result(this->width, this->height, 1);
 
-				for (int i = 0; i < this->channel; i++)
+				for (int x = 0; x < this->height; x++)
 				{
-					for (int x = 0; x < this->height; x++)
+					for (int y = 0; y < this->channel; y++)
 					{
-						for (int y = 0; y < this->channel; y++)
+						result.data[result.calc_pos(x, y, 0)] = this->data[calc_pos(x, y, 0)];
+
+						for (int i = 0; i < this->channel; i++)
 						{
+
 							if (result.data[result.calc_pos(x, y, 0)] < this->data[calc_pos(x, y, i)])
 							{
 								result.data[result.calc_pos(x, y, 0)] = this->data[calc_pos(x, y, i)];
@@ -478,12 +519,15 @@ class Matrix
 		{
 			Matrix<TYPE> result(1, 1, 1);
 			Matrix<TYPE> result_index(1, 1, 1);
+			result.data[0] = this->data[0];
+			result_index.data[0] = this->data[0];
+
 			for (int i = 0; i < (this->width * this->height * this->channel); i++)
 			{
 				if (result.data[0] < this->data[i])
 				{
 					result.data[0] = this->data[i];
-					result_index.data[0] = this->data[i];
+					result_index.data[0] = (double)i;
 				}
 			}
 			return result_index;
@@ -495,14 +539,18 @@ class Matrix
 			{
 				Matrix<TYPE> result(1, this->height);
 				Matrix<TYPE> result_index(1, this->height);
-				for (int i = 0; i < this->width; i++)
+				for (int y = 0; y < this->height; y++)
 				{
-					for (int y = 0; y < this->height; y++)
+					result.data[result.calc_pos(0, y, 0)] = this->data[calc_pos(0, y, 0)];
+					result_index.data[result_index.calc_pos(0, y, 0)] = 0;
+
+					for (int i = 0; i < this->width; i++)
 					{
+
 						if (result.data[result.calc_pos(0, y, 0)] < this->data[calc_pos(i, y, 0)])
 						{
 							result.data[result.calc_pos(0, y, 0)] = this->data[calc_pos(i, y, 0)];
-							result_index.data[result_index.calc_pos(0, y, 0)] = calc_pos(i, y, 0);
+							result_index.data[result_index.calc_pos(0, y, 0)] = (double)i;
 						}
 					}
 				}
@@ -513,14 +561,16 @@ class Matrix
 			{
 				Matrix<TYPE> result(this->width, 1);
 				Matrix<TYPE> result_index(this->width, 1);
-				for (int i = 0; i < this->height; i++)
+				for (int x = 0; x < this->height; x++)
 				{
-					for (int x = 0; x < this->height; x++)
+					result.data[result.calc_pos(x, 0, 0)] = this->data[calc_pos(x, 0, 0)];
+					result_index.data[result_index.calc_pos(x, 0, 0)] = 0;
+					for (int i = 0; i < this->height; i++)
 					{
 						if (result.data[result.calc_pos(x, 0, 0)] < this->data[calc_pos(x, i, 0)])
 						{
 							result.data[result.calc_pos(x, 0, 0)] = this->data[calc_pos(x, i, 0)];
-							result_index.data[result_index.calc_pos(x, 0, 0)] = calc_pos(x, i, 0);
+							result_index.data[result_index.calc_pos(x, 0, 0)] = (double)i;
 						}
 					}
 				}
@@ -534,16 +584,20 @@ class Matrix
 			{
 				Matrix<TYPE> result(1, this->height, this->channel);
 				Matrix<TYPE> result_index(1, this->height, this->channel);
-				for (int i = 0; i < this->width; i++)
+				for (int y = 0; y < this->height; y++)
 				{
-					for (int y = 0; y < this->height; y++)
+					for (int z = 0; z < this->channel; z++)
 					{
-						for (int z = 0; z < this->channel; z++)
+						result.data[result.calc_pos(0, y, z)] = this->data[calc_pos(0, y, z)];
+						result_index.data[result_index.calc_pos(0, y, z)] = 0;
+
+						for (int i = 0; i < this->width; i++)
 						{
+
 							if (result.data[result.calc_pos(0, y, z)] < this->data[calc_pos(i, y, z)])
 							{
 								result.data[result.calc_pos(0, y, z)] = this->data[calc_pos(i, y, z)];
-								result_index.data[result_index.calc_pos(0, y, z)] = calc_pos(i, y, z);
+								result_index.data[result_index.calc_pos(0, y, z)] = (double)i;
 							}
 						}
 					}
@@ -556,16 +610,20 @@ class Matrix
 			{
 				Matrix<TYPE> result(this->width, 1, this->channel);
 				Matrix<TYPE> result_index(this->width, 1, this->channel);
-				for (int i = 0; i < this->height; i++)
+				for (int x = 0; x < this->height; x++)
 				{
-					for (int x = 0; x < this->height; x++)
+					for (int z = 0; z < this->channel; z++)
 					{
-						for (int z = 0; z < this->channel; z++)
+						result.data[result.calc_pos(x, 0, z)] = this->data[calc_pos(x, 0, z)];
+						result_index.data[result_index.calc_pos(x, 0, z)] = 0;
+
+						for (int i = 0; i < this->height; i++)
 						{
+
 							if (result.data[result.calc_pos(x, 0, z)] < this->data[calc_pos(x, i, z)])
 							{
 								result.data[result.calc_pos(x, 0, z)] = this->data[calc_pos(x, i, z)];
-								result_index.data[result_index.calc_pos(x, 0, z)] = calc_pos(x, i, z);
+								result_index.data[result_index.calc_pos(x, 0, z)] = (double)i;
 							}
 						}
 					}
@@ -578,16 +636,19 @@ class Matrix
 				Matrix<TYPE> result(this->width, this->height, 1);
 				Matrix<TYPE> result_index(this->width, this->height, 1);
 
-				for (int i = 0; i < this->channel; i++)
+				for (int x = 0; x < this->height; x++)
 				{
-					for (int x = 0; x < this->height; x++)
+					for (int y = 0; y < this->channel; y++)
 					{
-						for (int y = 0; y < this->channel; y++)
+						result.data[result.calc_pos(x, y, 0)] = this->data[calc_pos(x, y, 0)];
+						result_index.data[result_index.calc_pos(x, y, 0)] = 0;
+
+						for (int i = 0; i < this->channel; i++)
 						{
 							if (result.data[result.calc_pos(x, y, 0)] < this->data[calc_pos(x, y, i)])
 							{
 								result.data[result.calc_pos(x, y, 0)] = this->data[calc_pos(x, y, i)];
-								result_index.data[result_index.calc_pos(x, y, 0)] = calc_pos(x, y, i);
+								result_index.data[result_index.calc_pos(x, y, 0)] = (double)i;
 							}
 						}
 					}
@@ -646,7 +707,7 @@ class Matrix
 				Matrix<TYPE> sum(this->width, 1);
 				for (int i = 0; i < this->height; i++)
 				{
-					for (int x = 0; x < this->height; x++)
+					for (int x = 0; x < this->width; x++)
 					{
 						sum.data[sum.calc_pos(x, 0, 0)] = sum.data[sum.calc_pos(x, 0, 0)] + this->data[calc_pos(x, i, 0)];
 					}
@@ -713,11 +774,12 @@ class Matrix
 	//assign
 	Matrix<TYPE> operator<<(double x)
 	{
-		data[cnt] = x;
-		cnt++;
+		this->data[this->insert_index] = x;
+		std::cout << this->insert_index << ":" << this->data[this->insert_index] << std::endl;
+
+		this->insert_index = this->insert_index + 1;
 		return *this;
 	}
-
 	//matrix vs matrix
 	Matrix<TYPE> operator+(Matrix<TYPE> obj)
 	{
@@ -734,7 +796,7 @@ class Matrix
 			return result;
 		}
 		//2d vs vector
-		else if (this->width == obj.width && obj.height == 1 && obj.channel == 1)
+		else if (obj.width != 1 && this->width == obj.width && obj.height == 1 && obj.channel == 1)
 		{
 			Matrix<TYPE> result(this->width, this->height, this->channel);
 			for (int c_index = 0; c_index < this->channel; c_index++)
@@ -743,13 +805,13 @@ class Matrix
 				{
 					for (int w_index = 0; w_index < this->width; w_index++)
 					{
-						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(w_index, 1, 1)];
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(w_index, 0, 0)];
 					}
 				}
 			}
 			return result;
 		}
-		else if (this->width == 1 && obj.height == this->height && obj.channel == 1)
+		else if (obj.height != 1 && obj.width == 1 && obj.height == this->height && obj.channel == 1)
 		{
 			Matrix<TYPE> result(this->width, this->height, this->channel);
 			for (int c_index = 0; c_index < this->channel; c_index++)
@@ -758,13 +820,13 @@ class Matrix
 				{
 					for (int w_index = 0; w_index < this->width; w_index++)
 					{
-						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(1, h_index, 1)];
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(0, h_index, 0)];
 					}
 				}
 			}
 			return result;
 		}
-		else if (this->width == obj.width && obj.height == 1 && obj.channel == 1)
+		else if (obj.channel != 1 && obj.width == 1 && obj.height == 1 && obj.channel == this->channel)
 		{
 			Matrix<TYPE> result(this->width, this->height, this->channel);
 			for (int c_index = 0; c_index < this->channel; c_index++)
@@ -773,7 +835,7 @@ class Matrix
 				{
 					for (int w_index = 0; w_index < this->width; w_index++)
 					{
-						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(1, 1, c_index)];
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(0, 0, c_index)];
 					}
 				}
 			}
@@ -790,7 +852,7 @@ class Matrix
 				{
 					for (int w_index = 0; w_index < this->width; w_index++)
 					{
-						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(w_index, h_index, 1)];
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(w_index, h_index, 0)];
 					}
 				}
 			}
@@ -806,13 +868,13 @@ class Matrix
 				{
 					for (int w_index = 0; w_index < this->width; w_index++)
 					{
-						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(w_index, 1, c_index)];
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(w_index, 0, c_index)];
 					}
 				}
 			}
 			return result;
 		}
-		else if (this->width == obj.width && obj.height == 1 && obj.channel == this->channel)
+		else if (this->width == 1 && obj.height == 1 && obj.channel == this->channel)
 		//Z axis face
 		{
 			Matrix<TYPE> result(this->width, this->height, this->channel);
@@ -822,34 +884,466 @@ class Matrix
 				{
 					for (int w_index = 0; w_index < this->width; w_index++)
 					{
-						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(1, h_index, c_index)];
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] + obj.data[obj.calc_pos(0, h_index, c_index)];
 					}
 				}
 			}
 			return result;
 		}
+		assert(0);
 	}
 
 	Matrix<TYPE> operator-(Matrix<TYPE> obj)
 	{
-		assert(this->width == obj.width && this->height == obj.height && this->channel == obj.channel);
-		Matrix<TYPE> result(this->width, this->height, this->channel);
-		for (int i = 0; i < width * height * channel; i++)
+
+		assert(this->width == obj.width || this->height == obj.height || this->channel == obj.channel);
+
+		if (this->width == obj.width && this->height == obj.height && this->channel == obj.channel)
+		//simple adder
 		{
-			result.data[i] = this->data[i] - obj.data[i];
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int i = 0; i < width * height * channel; i++)
+			{
+				result.data[i] = this->data[i] - obj.data[i];
+			}
+			return result;
 		}
-		return result;
+		//2d vs vector
+		else if (obj.width != 1 && this->width == obj.width && obj.height == 1 && obj.channel == 1)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] - obj.data[obj.calc_pos(w_index, 0, 0)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (obj.height != 1 && obj.width == 1 && obj.height == this->height && obj.channel == 1)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] - obj.data[obj.calc_pos(0, h_index, 0)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (obj.channel != 1 && obj.width == 1 && obj.height == 1 && obj.channel == this->channel)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] - obj.data[obj.calc_pos(0, 0, c_index)];
+					}
+				}
+			}
+			return result;
+		}
+		//3D vs 2D
+		else if (this->width == obj.width && obj.height == this->height && obj.channel == 1)
+		//Z axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] - obj.data[obj.calc_pos(w_index, h_index, 0)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (this->width == obj.width && obj.height == 1 && obj.channel == this->channel)
+		//Y axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] - obj.data[obj.calc_pos(w_index, 0, c_index)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (this->width == 1 && obj.height == 1 && obj.channel == this->channel)
+		//Z axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] - obj.data[obj.calc_pos(0, h_index, c_index)];
+					}
+				}
+			}
+			return result;
+		}
+		assert(0);
 	}
 
 	Matrix<TYPE> operator*(Matrix<TYPE> obj)
 	{
-		assert(this->width == obj.width && this->height == obj.height && this->channel == obj.channel);
-		Matrix<TYPE> result(this->width, this->height, this->channel);
-		for (int i = 0; i < width * height * channel; i++)
+		assert(this->width == obj.width || this->height == obj.height || this->channel == obj.channel);
+
+		if (this->width == obj.width && this->height == obj.height && this->channel == obj.channel)
+		//simple adder
 		{
-			result.data[i] = this->data[i] * obj.data[i];
+			assert(this->width == obj.width && this->height == obj.height && this->channel == obj.channel);
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int i = 0; i < width * height * channel; i++)
+			{
+				result.data[i] = this->data[i] * obj.data[i];
+			}
+			return result;
 		}
-		return result;
+		//2d vs vector
+		else if (obj.width != 0 && this->width == obj.width && obj.height == 1 && obj.channel == 1)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] * obj.data[obj.calc_pos(w_index, 0, 0)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (obj.height != 1 && obj.width == 1 && obj.height == this->height && obj.channel == 1)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] * obj.data[obj.calc_pos(0, h_index, 0)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (obj.channel != 0 && obj.width == 1 && obj.height == 1 && obj.channel == this->channel)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] * obj.data[obj.calc_pos(0, 0, c_index)];
+					}
+				}
+			}
+			return result;
+		}
+		//3D vs 2D
+		else if (this->width == obj.width && obj.height == this->height && obj.channel == 1)
+		//Z axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] * obj.data[obj.calc_pos(w_index, h_index, 0)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (this->width == obj.width && obj.height == 1 && obj.channel == this->channel)
+		//Y axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] * obj.data[obj.calc_pos(w_index, 0, c_index)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (this->width == 1 && obj.height == 1 && obj.channel == this->channel)
+		//Z axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] * obj.data[obj.calc_pos(0, h_index, c_index)];
+					}
+				}
+			}
+			return result;
+		}
+		assert(0);
+	}
+
+	Matrix<TYPE> operator/(Matrix<TYPE> obj)
+	{
+		assert(this->width == obj.width || this->height == obj.height || this->channel == obj.channel);
+
+		if (this->width == obj.width && this->height == obj.height && this->channel == obj.channel)
+		//simple adder
+		{
+			assert(this->width == obj.width && this->height == obj.height && this->channel == obj.channel);
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int i = 0; i < width * height * channel; i++)
+			{
+				result.data[i] = this->data[i] / obj.data[i];
+			}
+			return result;
+		}
+		//2d vs vector
+		else if (obj.width != 0 && this->width == obj.width && obj.height == 1 && obj.channel == 1)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] / obj.data[obj.calc_pos(w_index, 0, 0)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (obj.height != 1 && obj.width == 1 && obj.height == this->height && obj.channel == 1)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] / obj.data[obj.calc_pos(0, h_index, 0)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (obj.channel != 1 && obj.width == 1 && obj.height == 1 && obj.channel == this->channel)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] / obj.data[obj.calc_pos(0, 0, c_index)];
+					}
+				}
+			}
+			return result;
+		}
+		//3D vs 2D
+		else if (this->width == obj.width && obj.height == this->height && obj.channel == 1)
+		//Z axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] / obj.data[obj.calc_pos(w_index, h_index, 0)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (this->width == obj.width && obj.height == 1 && obj.channel == this->channel)
+		//Y axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] / obj.data[obj.calc_pos(w_index, 0, c_index)];
+					}
+				}
+			}
+			return result;
+		}
+		else if (this->width == 1 && obj.height == 1 && obj.channel == this->channel)
+		//X axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = this->data[this->calc_pos(w_index, h_index, c_index)] / obj.data[obj.calc_pos(0, h_index, c_index)];
+					}
+				}
+			}
+			return result;
+		}
+		assert(0);
+	}
+
+	Matrix<TYPE> compare(Matrix<TYPE> obj)
+	{
+		assert(this->width == obj.width || this->height == obj.height || this->channel == obj.channel);
+
+		if (this->width == obj.width && this->height == obj.height && this->channel == obj.channel)
+		//simple adder
+		{
+			assert(this->width == obj.width && this->height == obj.height && this->channel == obj.channel);
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int i = 0; i < width * height * channel; i++)
+			{
+				result.data[i] = (double)(this->data[i] == obj.data[i]);
+			}
+			return result;
+		}
+		//2d vs vector
+		else if (obj.width != 0 && this->width == obj.width && obj.height == 1 && obj.channel == 1)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = (double)(this->data[this->calc_pos(w_index, h_index, c_index)] == obj.data[obj.calc_pos(w_index, 0, 0)]);
+					}
+				}
+			}
+			return result;
+		}
+		else if (obj.height != 1 && obj.width == 1 && obj.height == this->height && obj.channel == 1)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = (double)(this->data[this->calc_pos(w_index, h_index, c_index)] == obj.data[obj.calc_pos(0, h_index, 0)]);
+					}
+				}
+			}
+			return result;
+		}
+		else if (obj.channel != 1 && obj.width == 1 && obj.height == 1 && obj.channel == this->channel)
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = (double)(this->data[this->calc_pos(w_index, h_index, c_index)] == obj.data[obj.calc_pos(0, 0, c_index)]);
+					}
+				}
+			}
+			return result;
+		}
+		//3D vs 2D
+		else if (this->width == obj.width && obj.height == this->height && obj.channel == 1)
+		//Z axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = (double)(this->data[this->calc_pos(w_index, h_index, c_index)] == obj.data[obj.calc_pos(w_index, h_index, 0)]);
+					}
+				}
+			}
+			return result;
+		}
+		else if (this->width == obj.width && obj.height == 1 && obj.channel == this->channel)
+		//Y axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = (double)(this->data[this->calc_pos(w_index, h_index, c_index)] == obj.data[obj.calc_pos(w_index, 0, c_index)]);
+					}
+				}
+			}
+			return result;
+		}
+		else if (this->width == 1 && obj.height == 1 && obj.channel == this->channel)
+		//X axis face
+		{
+			Matrix<TYPE> result(this->width, this->height, this->channel);
+			for (int c_index = 0; c_index < this->channel; c_index++)
+			{
+				for (int h_index = 0; h_index < this->height; h_index++)
+				{
+					for (int w_index = 0; w_index < this->width; w_index++)
+					{
+						result.data[this->calc_pos(w_index, h_index, c_index)] = (double)(this->data[this->calc_pos(w_index, h_index, c_index)] == obj.data[obj.calc_pos(0, h_index, c_index)]);
+					}
+				}
+			}
+			return result;
+		}
+		assert(0);
 	}
 
 	//matrix vs double
@@ -882,6 +1376,7 @@ class Matrix
 		}
 		return result;
 	}
+
 	//clone
 	Matrix<TYPE> clone(void)
 	{
@@ -908,21 +1403,27 @@ class Matrix
 	}
 
 	// overwrite by random parameter
-	Matrix<TYPE> random(void)
+	Matrix<TYPE> random(double ave, double dis)
 	{
 		assert(this->width > 0 && this->height > 0 && this->channel > 0);
 		Matrix<TYPE> result(this->width, this->height, this->channel);
-		result.shape();
+		std::random_device rd{};
+		std::mt19937 gen{rd()};
+
 		std::random_device seed_gen;
 		std::default_random_engine engine(seed_gen());
-		std::normal_distribution<double> dist(0.0, 1.0);
+		std::normal_distribution<double> dist(ave, dis);
 
-		for (int i; i < width * height * channel; i++)
+		for (int i = 0; i < width * height * channel; i++)
 		{
-			result.data[i] = (double)dist(engine);
+			double tmp = (double)dist(engine);
+			//std::cout << tmp << std::endl;
+
+			result.data[i] = (tmp + 0.5);
 		}
 		return result;
 	}
 };
+
 } // namespace mat
 #endif
