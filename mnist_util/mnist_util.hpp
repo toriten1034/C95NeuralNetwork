@@ -7,7 +7,7 @@
  * ***********************************************************************/
 
 #include "../matrix/matrix.hpp"
-#include "../fixed_19/fixed_point.hpp"
+#include "../fixed_18/fixed_point.hpp"
 
 #include <iostream>
 #include <fstream>

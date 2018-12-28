@@ -1,6 +1,6 @@
 #include <numeric>
 #include <assert.h>
-#include "../fixed_19/fixed_point.hpp"
+#include "../fixed_18/fixed_point.hpp"
 #include "../matrix/matrix.hpp"
 #include <stdlib.h>
 
@@ -35,7 +35,7 @@ Fix18 relu(Fix18 x)
 
 Fix18 relu_gradient(Fix18 x)
 {
-	return (0 < x.to_double())   ? 1: 0;
+	return (0 < x.to_double()) ? 1 : 0;
 }
 
 mat::Matrix<Fix18> softmax(mat::Matrix<Fix18> obj)
