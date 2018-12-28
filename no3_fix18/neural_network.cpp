@@ -1,4 +1,5 @@
 #include <vector>
+#include <algorithm>
 #include <map>
 
 #include "../mnist_util/mnist_util.hpp"
@@ -181,8 +182,8 @@ std::vector<double> test_acc_list;
 int main(void)
 {
 	mnist_nanager<VAL_TYPE> train_data, test_data;
-	train_data.load("train-labels.idx1-ubyte", "train-images.idx3-ubyte");
-	test_data.load("t10k-labels.idx1-ubyte", "t10k-images.idx3-ubyte");
+	train_data.load("../MNIST/train-labels.idx1-ubyte", "../MNIST/train-images.idx3-ubyte");
+	test_data.load("../MNIST/t10k-labels.idx1-ubyte", "../MNIST/t10k-images.idx3-ubyte");
 
 	//  std::cout << "load ok" << std::endl;
 
