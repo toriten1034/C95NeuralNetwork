@@ -14,7 +14,7 @@ typedef unsigned int uint32;
 
 class Fix18
 {
-      public:
+  public:
 	uint32 value;
 	//constructor
 	Fix18()
@@ -60,7 +60,7 @@ class Fix18
 
 		if (this->value >> 17)
 		{
-			tmp = -tmp;
+			tmp = -(tmp + (1.0 / 512.0));
 		}
 		return tmp;
 	}
@@ -150,7 +150,7 @@ class Fix18
 		return os;
 	}
 
-      private:
+  private:
 	uint32 to_minus(uint32 x)
 	{
 		return x;

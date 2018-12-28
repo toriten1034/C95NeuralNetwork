@@ -1,31 +1,25 @@
 #include <iostream>
 #include <assert.h>
+#include <string>
 #include "fixed_point.hpp"
+
+std::string int2bin(int x)
+{
+	int mask = 0x20000;
+	std::string bits;
+	for (int i = 0; i < 18; i++)
+	{
+		bits += (mask & x) ? "1" : "0";
+		mask >>= 1;
+	}
+	return bits;
+}
 
 int main(void)
 {
 
-	Fix18 a = 262138;
-	std::cout << a << std::endl;
-
-	Fix18 b = 269;
-	std::cout << b << std::endl;
-
-	Fix18 c = a * b;
-	std::cout << "difference" << c << std::endl;
-
-	/*
-	for (double i = -20.0; i < 20.0; i += 0.1)
-	{
-		for (double j = -1.0; j < 1.0; j += 0.01)
-		{
-
-			Fix18 a = i;
-			Fix18 b = j;
-			double c = (a * b).to_double() - (i * j);
-			std::cout << "difference" << c << std::endl;
-			assert(c < 1.0 && c > -1.0);
-		}
-	}
-	*/
+	Fix18 max;
+	max = -1.0;
+	std::cout << "bit field   max :" << int2bin(max.value) << std::endl;
+	std::cout << "max value " << max << std::endl;
 }

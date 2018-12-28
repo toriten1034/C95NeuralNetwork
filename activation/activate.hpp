@@ -35,7 +35,7 @@ Fix18 relu(Fix18 x)
 
 Fix18 relu_gradient(Fix18 x)
 {
-	return (0 < x.to_double()) ? 1 : 0;
+	return (0 < x.to_double())   ? 1: 0;
 }
 
 mat::Matrix<Fix18> softmax(mat::Matrix<Fix18> obj)
