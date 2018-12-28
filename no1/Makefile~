@@ -1,5 +1,0 @@
-CFLAGS = -Wall
-main: main.cpp
-	g++ -o test (CFLAGS)  main.cpp
-clean:
-	rm test	
