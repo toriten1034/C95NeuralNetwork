@@ -256,6 +256,15 @@ int main(void)
 	{
 		test_batch_label.data[test_data_index] = (double)test_data.label_array[test_data_index];
 
+		if (test_batch_label.data[test_data_index] == 4)
+		{
+			for (int copy_cnt = 0; copy_cnt < (test_data.width * test_data.height); copy_cnt++)
+			{
+				Fix18 tmp = test_data.data_array[test_data_index].data[copy_cnt];
+				std::cout << tmp.value << ",";
+			}
+			return 0;
+		}
 		for (int copy_cnt = 0; copy_cnt < (test_data.width * test_data.height); copy_cnt++)
 		{
 			test_batch_data.data[test_batch_data.calc_pos(copy_cnt, test_data_index, 0)] = test_data.data_array[test_data_index].data[copy_cnt];
