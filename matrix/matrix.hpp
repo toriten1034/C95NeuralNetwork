@@ -12,7 +12,7 @@ template <typename TYPE>
 class Matrix
 {
 
-      public:
+  public:
 	TYPE *data;
 	int height = 0; //if height == 0 then dimension y is zero
 	int width = 0;
@@ -775,7 +775,7 @@ class Matrix
 	Matrix<TYPE> operator<<(double x)
 	{
 		this->data[this->insert_index] = x;
-		std::cout << this->insert_index << ":" << this->data[this->insert_index] << std::endl;
+		//	std::cout << this->insert_index << ":" << this->data[this->insert_index] << std::endl;
 
 		this->insert_index = this->insert_index + 1;
 		return *this;
