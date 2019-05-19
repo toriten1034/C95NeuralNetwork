@@ -97,5 +97,5 @@ double cross_entropy_error(mat::Matrix<double> y, mat::Matrix<double> t)
 	{
 		result.data[i] = tmp_y.data[i] * std::log(tmp_t.data[i] + delta);
 	}
-	double sum = -result.sum(0).data[0];
+	double sum = -result.sum(0).data[0]/result.channel;
 }
